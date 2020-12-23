@@ -2,9 +2,9 @@ import socket
 import threading
 import time
 import numpy as np
-# import libh264decoder
+import libh264decoder
 
-class TelloController:
+class Tello:
     """Tello Controller that provides Tello's functionalities. Coded by Dylan"""
 
     def __init__(self, local_ip, local_port, imperial=False, command_timeout=.3, tello_ip='192.168.10.1',
@@ -22,7 +22,7 @@ class TelloController:
         """
 
         self.abort_flag = False
-        # self.decoder = libh264decoder.H264Decoder()
+        self.decoder = libh264decoder.H264Decoder()
         self.command_timeout = command_timeout
         self.imperial = imperial
         self.response = None  
@@ -51,10 +51,10 @@ class TelloController:
         self.socket_video.bind((local_ip, self.local_video_port))
 
         # thread for receiving video
-        # self.receive_video_thread = threading.Thread(target=self._receive_video_thread)
-        # self.receive_video_thread.daemon = True
+        self.receive_video_thread = threading.Thread(target=self._receive_video_thread)
+        self.receive_video_thread.daemon = True
 
-        # self.receive_video_thread.start()
+        self.receive_video_thread.start()
 
     def __del__(self):
         """Closes the local socket."""
@@ -96,18 +96,18 @@ class TelloController:
 
         """
         packet_data = ""
-        # while True:
-        #     try:
-        #         res_string, ip = self.socket_video.recvfrom(2048)
-        #         packet_data += res_string
-        #         # end of frame
-        #         if len(res_string) != 1460:
-        #             for frame in self._h264_decode(packet_data):
-        #                 self.frame = frame
-        #             packet_data = ""
+        while True:
+            try:
+                res_string, ip = self.socket_video.recvfrom(2048)
+                packet_data += res_string
+                # end of frame
+                if len(res_string) != 1460:
+                    for frame in self._h264_decode(packet_data):
+                        self.frame = frame
+                    packet_data = ""
 
-        #     except socket.error as exc:
-        #         print ("Caught exception socket.error : %s" % exc)
+            except socket.error as exc:
+                print ("Caught exception socket.error : %s" % exc)
     
     def _h264_decode(self, packet_data):
         """
@@ -118,16 +118,16 @@ class TelloController:
         :return: a list of decoded frame
         """
         res_frame_list = []
-        # frames = self.decoder.decode(packet_data)
-        # for framedata in frames:
-        #     (frame, w, h, ls) = framedata
-        #     if frame is not None:
-        #         # print 'frame size %i bytes, w %i, h %i, linesize %i' % (len(frame), w, h, ls)
+        frames = self.decoder.decode(packet_data)
+        for framedata in frames:
+            (frame, w, h, ls) = framedata
+            if frame is not None:
+                # print 'frame size %i bytes, w %i, h %i, linesize %i' % (len(frame), w, h, ls)
 
-        #         frame = np.fromstring(frame, dtype=np.ubyte, count=len(frame), sep='')
-        #         frame = (frame.reshape((h, ls / 3, 3)))
-        #         frame = frame[:, :w, :]
-        #         res_frame_list.append(frame)
+                frame = np.fromstring(frame, dtype=np.ubyte, count=len(frame), sep='')
+                frame = (frame.reshape((h, ls / 3, 3)))
+                frame = frame[:, :w, :]
+                res_frame_list.append(frame)
 
         return res_frame_list
 
@@ -457,3 +457,6 @@ class TelloController:
         """
 
         return self.move('up', distance)
+    
+    def stop(self):
+        return self.send_command('stop')

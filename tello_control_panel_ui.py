@@ -40,7 +40,6 @@ class TelloUI:
         self.root = tki.Tk()
         self.panel = None
 
-
         # create buttons
         self.btn_snapshot = tki.Button(self.root, text="Snapshot!",
                                        command=self.takeSnapshot)
@@ -154,10 +153,30 @@ class TelloUI:
         text1 = tki.Label(panel, text=
                           'W - Move Tello Up\t\t\tArrow Up - Move Tello Forward\n'
                           'S - Move Tello Down\t\t\tArrow Down - Move Tello Backward\n'
-                          'A - Rotate Tello Counter-Clockwise\tArrow Left - Move Tello Left\n'
-                          'D - Rotate Tello Clockwise\t\tArrow Right - Move Tello Right',
+                          'A - Rotate Tello Counter-Clockwise\t\tArrow Left - Move Tello Left\n'
+                          'D - Rotate Tello Clockwise\t\t\tArrow Right - Move Tello Right\nG-Stop Tello',
                           justify="left")
-        text1.pack(side="top")
+        text1.pack(side="top")  
+
+        self.btn_landing = tki.Button(
+            panel, text="Flight Time", relief="raised", command=self.get_flight_time)
+        self.btn_landing.pack(side="bottom", fill="both",
+                              expand="yes", padx=10, pady=5) 
+        
+        self.btn_landing = tki.Button(
+            panel, text="Battery", relief="raised", command=self.get_battery)
+        self.btn_landing.pack(side="bottom", fill="both",
+                              expand="yes", padx=10, pady=5) 
+
+        self.btn_landing = tki.Button(
+            panel, text="Speed", relief="raised", command=self.get_speed)
+        self.btn_landing.pack(side="bottom", fill="both",
+                              expand="yes", padx=10, pady=5)
+
+        self.btn_landing = tki.Button(
+            panel, text="Preplan", relief="raised", command=self.runPreplanRoute)
+        self.btn_landing.pack(side="bottom", fill="both",
+                              expand="yes", padx=10, pady=5)
 
         self.btn_landing = tki.Button(
             panel, text="Land", relief="raised", command=self.telloLanding)
@@ -175,6 +194,7 @@ class TelloUI:
         self.tmp_f.bind('<KeyPress-s>', self.on_keypress_s)
         self.tmp_f.bind('<KeyPress-a>', self.on_keypress_a)
         self.tmp_f.bind('<KeyPress-d>', self.on_keypress_d)
+        self.tmp_f.bind('<KeyPress-g>', self.on_keypress_g)
         self.tmp_f.bind('<KeyPress-Up>', self.on_keypress_up)
         self.tmp_f.bind('<KeyPress-Down>', self.on_keypress_down)
         self.tmp_f.bind('<KeyPress-Left>', self.on_keypress_left)
@@ -187,12 +207,14 @@ class TelloUI:
         self.btn_landing.pack(side="bottom", fill="both",
                               expand="yes", padx=10, pady=5)
 
+                         
+
         self.distance_bar = Scale(panel, from_=0.02, to=5, tickinterval=0.01, digits=3, label='Distance(m)',
                                   resolution=0.01)
         self.distance_bar.set(0.2)
         self.distance_bar.pack(side="left")
 
-        self.btn_distance = tki.Button(panel, text="Reset Distance", relief="raised",
+        self.btn_distance = tki.Button(panel, text="Set Distance", relief="raised",
                                        command=self.updateDistancebar,
                                        )
         self.btn_distance.pack(side="left", fill="both",
@@ -202,7 +224,7 @@ class TelloUI:
         self.degree_bar.set(30)
         self.degree_bar.pack(side="right")
 
-        self.btn_distance = tki.Button(panel, text="Reset Degree", relief="raised", command=self.updateDegreebar)
+        self.btn_distance = tki.Button(panel, text="Set Degree", relief="raised", command=self.updateDegreebar)
         self.btn_distance.pack(side="right", fill="both",
                                expand="yes", padx=10, pady=5)
 
@@ -233,7 +255,25 @@ class TelloUI:
             panel, text="Flip Backward", relief="raised", command=self.telloFlip_b)
         self.btn_flipb.pack(side="bottom", fill="both",
                             expand="yes", padx=10, pady=5)
-       
+
+    def runPreplanRoute(self):
+        self.telloTakeOff()   
+        for x in range(4):
+            self.telloMoveForward(self.distance)
+            self.telloCW(90)
+            time.sleep(self.calculate_time_required())
+        self.telloLanding()
+        print("Preplan route success")
+
+    def calculate_time_required(self):
+        current_speed = self.get_speed()    
+        if isinstance(current_speed,str) == False:
+            time_taken_to_complete = (self.distance/float(current_speed)) + 2
+            print("Time taken to complete the action: %.2f"+time_taken_to_complete)
+            return time_taken_to_complete
+        print("No current speed \nSetting the time required: 3s")
+        return 4
+
     def takeSnapshot(self):
         """
         save the current frame of the video as a jpg file and put it into outputpath
@@ -267,7 +307,7 @@ class TelloUI:
     def telloLanding(self):
         return self.tello.land()
 
-    def telloFlip_l(self):
+    def telloFlip_l(self):  
         return self.tello.flip('l')
 
     def telloFlip_r(self):
@@ -285,22 +325,35 @@ class TelloUI:
     def telloCCW(self, degree):
         return self.tello.rotate_ccw(degree)
 
+    # Interrupt current movement if a new event is triggered
+    def interrupt_current_movement(self):
+        speed = self.get_speed()
+        if speed != 'none_response':
+            print('Interrupt the movement \nstopping the existing movement \nproceed to the next command')
+            self.stop_movement()
+
     def telloMoveForward(self, distance):
+        self.interrupt_current_movement()        
         return self.tello.move_forward(distance)
 
     def telloMoveBackward(self, distance):
+        self.interrupt_current_movement()
         return self.tello.move_backward(distance)
 
     def telloMoveLeft(self, distance):
+        self.interrupt_current_movement()
         return self.tello.move_left(distance)
 
     def telloMoveRight(self, distance):
+        self.interrupt_current_movement()
         return self.tello.move_right(distance)
 
     def telloUp(self, dist):
+        self.interrupt_current_movement()
         return self.tello.move_up(dist)
 
     def telloDown(self, dist):
+        self.interrupt_current_movement()
         return self.tello.move_down(dist)
 
     def updateTrackBar(self):
@@ -330,6 +383,13 @@ class TelloUI:
         print("cw %d m" % self.degree)
         self.tello.rotate_cw(self.degree)
 
+    def on_keypress_g(self, event):
+        self.stop_movement()
+
+    def stop_movement(self):
+        print("Stop the drone")
+        self.tello.stop()
+
     def on_keypress_up(self, event):
         print("forward %d m" % self.distance)
         self.telloMoveForward(self.distance)
@@ -350,6 +410,21 @@ class TelloUI:
         if self.frame is not None:
             self.registerFace()
         self.tmp_f.focus_set()
+
+    def get_battery(self):
+        battery = self.tello.get_battery()
+        print(battery)
+        return battery
+
+    def get_speed(self):
+        speed = self.tello.get_speed()
+        print(speed)
+        return speed
+
+    def get_flight_time(self):
+        time = self.tello.get_flight_time()
+        print(time)
+        return time
 
     def onClose(self):
         """

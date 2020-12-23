@@ -1,10 +1,10 @@
-import tello_controller
+import tello
 from tello_control_panel_ui import TelloUI
 
 """Coded by Group Dylan"""
 def main():
 
-    drone = tello_controller.TelloController('', 8889)  
+    drone = tello.Tello('', 8889)  
     vplayer = TelloUI(drone,"./img/")
     
 	# start the Tkinter mainloop
